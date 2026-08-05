@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="易经用户提问内容分析看板原型" />
+    <title>问象 · 易经用户提问内容分析</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css?v=20260805-qa2" />
+    <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script defer src="./app.js?v=20260805-qa5"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">跳至主要内容</a>
+    <div class="paper-grain" aria-hidden="true"></div>
+
+    <header class="app-header">
+      <div class="brand-lockup">
+        <div class="brand-seal" aria-hidden="true"><span>問</span></div>
+        <div>
+          <p class="micro-label">Q-SCOPE / ANALYSIS OS</p>
+          <h1>问象</h1>
+          <p class="brand-subtitle">问题内容观测系统</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="data-state">
+          <span class="state-dot"></span>
+          <span id="dataStateText">正在展示演示数据</span>
+        </div>
+        <button class="upload-button" id="openUpload" type="button">
+          <span aria-hidden="true">＋</span>
+          上传提问数据
+        </button>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="workflow" aria-labelledby="workflowTitle">
+        <div class="workflow-copy">
+          <p class="section-index">MISSION CONTROL</p>
+          <h2 id="workflowTitle">问题内容观测站</h2>
+          <p>上传用户提问明细，系统自动识别字段、清洗无效内容，并完成一级类型、二级场景与标准问题归类。</p>
+        </div>
+        <ol class="workflow-steps">
+          <li class="is-active"><span>01</span><strong>上传数据</strong><small>CSV · Excel · JSON</small></li>
+          <li><span>02</span><strong>自动分析</strong><small>清洗 · 分类 · 聚合</small></li>
+          <li><span>03</span><strong>看板展示</strong><small>结构 · 趋势 · 差异</small></li>
+        </ol>
+      </section>
+
+      <section class="filter-rail" aria-label="看板筛选条件">
+        <div class="filter-title">
+          <span class="filter-mark" aria-hidden="true"></span>
+          <div><small>当前分析范围</small><strong id="filterSummary">全部演示数据</strong></div>
+        </div>
+        <label><span>时间范围</span><select id="dateFilter"><option value="all">全部时间</option><option value="7">最近 7 天</option><option value="30" selected>最近 30 天</option></select></label>
+        <label><span>产品端</span><select id="productFilter"><option value="all">全部产品</option><option value="App">App</option><option value="Web">Web</option></select></label>
+        <label><span>一级类型</span><select id="categoryFilter"><option value="all">全部类型</option></select></label>
+        <label><span>二级类型</span><select id="secondaryFilter"><option value="all">全部场景</option></select></label>
+        <button class="reset-button" id="resetFilters" type="button">重置</button>
+      </section>
+
+      <section class="dashboard-section overview-section" aria-labelledby="overviewTitle">
+        <div class="section-heading">
+          <div><p class="section-index">OVERVIEW</p><h2 id="overviewTitle">提问内容总览</h2></div>
+          <p id="freshnessText">数据更新于 —</p>
+        </div>
+        <div class="metric-grid" id="metricGrid"></div>
+      </section>
+
+      <section class="dashboard-grid primary-grid">
+        <article class="panel trend-panel">
+          <div class="panel-heading">
+            <div><p class="panel-kicker">VOLUME TREND</p><h3>提问量趋势</h3></div>
+            <div class="legend"><span><i class="legend-total"></i>有效提问</span></div>
+          </div>
+          <div class="chart-wrap" id="volumeTrend"></div>
+        </article>
+
+        <article class="panel category-panel">
+          <div class="panel-heading">
+            <div><p class="panel-kicker">TOPIC MIX</p><h3>一级问题类型分布</h3></div>
+            <span class="annotation">按有效提问数排序</span>
+          </div>
+          <div class="bar-list" id="categoryBars"></div>
+        </article>
+      </section>
+
+      <section class="dashboard-grid secondary-grid">
+        <article class="panel type-trend-panel">
+          <div class="panel-heading">
+            <div><p class="panel-kicker">TOPIC MOVEMENT</p><h3>主要类型趋势</h3></div>
+            <div class="legend compact" id="topicLegend"></div>
+          </div>
+          <div class="chart-wrap" id="topicTrend"></div>
+        </article>
+
+        <article class="panel product-panel">
+          <div class="panel-heading">
+            <div><p class="panel-kicker">PRODUCT GAP</p><h3>App 与 Web 类型差异</h3></div>
+            <span class="annotation">各端内部占比</span>
+          </div>
+          <div id="productCompare" class="compare-list"></div>
+        </article>
+
+        <article class="panel secondary-panel">
+          <div class="panel-heading">
+            <div><p class="panel-kicker">SCENARIOS</p><h3>热门二级类型</h3></div>
+            <span class="annotation">TOP 7</span>
+          </div>
+          <ol id="secondaryRanking" class="ranking-list"></ol>
+        </article>
+      </section>
+
+      <section class="dashboard-section detail-section" aria-labelledby="detailTitle">
+        <div class="section-heading detail-heading">
+          <div><p class="section-index">QUESTION LIBRARY</p><h2 id="detailTitle">热门问题明细</h2></div>
+          <div class="table-tools">
+            <label class="search-field"><span class="sr-only">搜索问题</span><input id="questionSearch" type="search" placeholder="搜索问题内容…" /></label>
+            <span id="tableCount">0 条</span>
+          </div>
+        </div>
+        <div class="table-shell">
+          <table>
+            <thead><tr><th>一级类型</th><th>二级类型</th><th>用户问题（已脱敏）</th><th>产品端</th><th>提问时间</th></tr></thead>
+            <tbody id="questionTable"></tbody>
+          </table>
+        </div>
+        <div class="table-footer"><span>默认展示最近 12 条记录</span><button id="showMore" type="button">展开更多</button></div>
+      </section>
+    </main>
+
+    <footer><span>问象 / PROTOTYPE 01</span><p>当前分类由浏览器端规则模拟，用于确认看板流程与信息结构。</p></footer>
+
+    <div class="modal" id="uploadModal" hidden>
+      <div class="modal-backdrop" data-close-modal></div>
+      <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="uploadTitle">
+        <button class="modal-close" type="button" data-close-modal aria-label="关闭">×</button>
+        <p class="section-index">IMPORT DATA</p>
+        <h2 id="uploadTitle">上传用户提问数据</h2>
+        <p class="modal-intro">系统将自动识别提问内容、时间、用户、产品端和平台字段。原型中的分类在本地浏览器完成。</p>
+
+        <div class="upload-drop" id="dropZone">
+          <input id="fileInput" type="file" accept=".csv,.json,.xlsx,.xls,text/csv,application/json" />
+          <div class="upload-symbol" aria-hidden="true">↥</div>
+          <strong>拖入文件，或点击选择</strong>
+          <span>支持 CSV、Excel、JSON · 建议包含 question_text、created_at、user_id、product</span>
+        </div>
+
+        <div class="field-guide">
+          <div><span>必需字段</span><strong>提问内容</strong><small>question / question_text / 用户提问</small></div>
+          <div><span>推荐字段</span><strong>时间 · 用户 · 产品端</strong><small>缺失时会明确标注，不虚构默认值</small></div>
+        </div>
+
+        <div class="analysis-progress" id="analysisProgress" hidden aria-live="polite">
+          <div class="progress-head"><strong id="progressTitle">正在读取文件</strong><span id="progressPercent">0%</span></div>
+          <div class="progress-track"><i id="progressBar"></i></div>
+          <ol><li id="stepRead">读取并识别字段</li><li id="stepClean">清洗无效提问</li><li id="stepClassify">自动分类与聚合</li></ol>
+        </div>
+        <p class="upload-error" id="uploadError" role="alert"></p>
+      </section>
+    </div>
+  </body>
+</html>
