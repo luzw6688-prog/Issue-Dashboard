@@ -22,6 +22,10 @@
   const CATEGORY_PRIORITY = ["感情婚恋", "学业考试", "健康状态", "人际关系", "家庭子女", "事业工作", "财运财富", "具体事件", "时机选择", "综合运势"];
   const CATEGORY_COLORS = ["#62e8ff", "#9d8cff", "#ffb86b", "#5da8ff", "#7ce7b6"];
   const MAX_ANALYSIS_ROWS = 50000;
+  const STORAGE_DB_NAME = "wenxiang-question-dashboard";
+  const STORAGE_STORE_NAME = "datasets";
+  const STORAGE_RECORD_KEY = "active-dataset";
+  const STORAGE_SCHEMA_VERSION = 1;
   const aliases = {
     question: ["question_text", "question", "questioncontent", "content", "message", "query", "prompt", "用户提问", "提问内容", "问题内容", "问卦内容", "问题"],
     date: ["created_at", "createdat", "event_timestamp", "eventtimestamp", "event_time", "eventtime", "question_time", "questiontime", "timestamp", "datetime", "date", "time", "提问时间", "创建时间", "日期时间", "日期"],
@@ -30,28 +34,6 @@
     platform: ["platform", "device_type", "devicetype", "operating_system", "operatingsystem", "os", "系统", "平台", "设备类型"]
   };
   const QUESTION_FIELD_BLOCKLIST = /(^|)(id|type|status|category|分类|标签)$/i;
-
-  const sampleQuestions = [
-    ["我和前任还有复合机会吗？", "App"], ["他现在心里还有我吗？", "App"], ["这段感情还值得继续吗？", "Web"], ["今年会遇到适合结婚的人吗？", "App"],
-    ["最近适合换工作吗？", "Web"], ["下周的面试能拿到 offer 吗？", "App"], ["这个项目最后能不能做成？", "Web"], ["我应该辞职创业吗？", "Web"],
-    ["现在开始做副业能赚到钱吗？", "App"], ["这笔投资是否值得继续？", "Web"], ["合作款这个月能回来吗？", "Web"], ["今年整体财运怎么样？", "App"],
-    ["未来三个月整体运势如何？", "App"], ["今年下半年会顺利一些吗？", "Web"], ["我接下来的人生方向在哪里？", "Web"],
-    ["这次公务员考试能上岸吗？", "App"], ["应该留学还是留在国内读研？", "Web"], ["孩子今年升学顺利吗？", "App"],
-    ["领导最近是不是对我有意见？", "App"], ["这个合作伙伴值得信任吗？", "Web"], ["最近是否会遇到贵人？", "App"],
-    ["妈妈最近身体状态怎么样？", "App"], ["最近压力很大，什么时候能缓过来？", "Web"],
-    ["现在适合主动联系他吗？", "App"], ["这个月哪天适合签约？", "Web"], ["近期适合搬家吗？", "App"],
-    ["丢失的戒指还能找回来吗？", "Web"], ["这次买房交易能顺利完成吗？", "Web"], ["联系不上的朋友还安全吗？", "App"]
-  ];
-
-  function makeDemoData() {
-    const now = new Date();
-    return Array.from({ length: 168 }, (_, index) => {
-      const base = sampleQuestions[index % sampleQuestions.length];
-      const dayOffset = (index * 7 + index % 5) % 30;
-      const date = new Date(now); date.setDate(now.getDate() - dayOffset); date.setHours(8 + (index * 3) % 15, (index * 11) % 60, 0, 0);
-      return normalizeRecord({ question_text: base[0], product: index % 6 === 0 ? (base[1] === "App" ? "Web" : "App") : base[1], platform: base[1] === "Web" ? "Web" : (index % 2 ? "iOS" : "Android"), user_id: `U${String(index % 91).padStart(4, "0")}`, created_at: date.toISOString() }, index);
-    });
-  }
 
   function normalizeKey(value) { return String(value || "").trim().toLowerCase().replace(/[\s_\-./（）()]/g, ""); }
   function findField(row, group) {
@@ -120,13 +102,93 @@
     };
   }
 
-  let allData = makeDemoData();
+  let allData = [];
   let filteredData = [];
   let tableExpanded = false;
   const $ = id => document.getElementById(id);
   const fmt = new Intl.NumberFormat("zh-CN");
   const percent = (value, total) => total ? `${(value / total * 100).toFixed(1)}%` : "0%";
   const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+
+  function openStorage() {
+    return new Promise((resolve, reject) => {
+      if (typeof indexedDB === "undefined") { reject(new Error("当前浏览器不支持本地持久化存储")); return; }
+      const request = indexedDB.open(STORAGE_DB_NAME, STORAGE_SCHEMA_VERSION);
+      request.onupgradeneeded = () => {
+        if (!request.result.objectStoreNames.contains(STORAGE_STORE_NAME)) request.result.createObjectStore(STORAGE_STORE_NAME);
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error("无法打开浏览器存储"));
+    });
+  }
+  async function writeStoredDataset(payload) {
+    const db = await openStorage();
+    try {
+      await new Promise((resolve, reject) => {
+        const transaction = db.transaction(STORAGE_STORE_NAME, "readwrite");
+        transaction.objectStore(STORAGE_STORE_NAME).put(payload, STORAGE_RECORD_KEY);
+        transaction.oncomplete = resolve;
+        transaction.onerror = () => reject(transaction.error || new Error("数据保存失败"));
+        transaction.onabort = () => reject(transaction.error || new Error("数据保存被中止"));
+      });
+    } finally { db.close(); }
+  }
+  async function readStoredDataset() {
+    const db = await openStorage();
+    try {
+      return await new Promise((resolve, reject) => {
+        const request = db.transaction(STORAGE_STORE_NAME, "readonly").objectStore(STORAGE_STORE_NAME).get(STORAGE_RECORD_KEY);
+        request.onsuccess = () => resolve(request.result || null);
+        request.onerror = () => reject(request.error || new Error("数据读取失败"));
+      });
+    } finally { db.close(); }
+  }
+  async function deleteStoredDataset() {
+    const db = await openStorage();
+    try {
+      await new Promise((resolve, reject) => {
+        const transaction = db.transaction(STORAGE_STORE_NAME, "readwrite");
+        transaction.objectStore(STORAGE_STORE_NAME).delete(STORAGE_RECORD_KEY);
+        transaction.oncomplete = resolve;
+        transaction.onerror = () => reject(transaction.error || new Error("数据清除失败"));
+      });
+    } finally { db.close(); }
+  }
+  function rehydrateStoredRows(rows) {
+    return Array.isArray(rows) ? rows.map(item => ({ ...item, date: parseDateValue(item?.date) })) : [];
+  }
+  function resetControls() {
+    tableExpanded = false;
+    $("questionSearch").value = "";
+    $("dateFilter").value = "30";
+    $("productFilter").value = "all";
+    $("categoryFilter").value = "all";
+    updateFilterOptions();
+    $("secondaryFilter").value = "all";
+  }
+  function showEmptyState(message = "尚未上传数据 · 数据仅保存在当前浏览器") {
+    allData = [];
+    resetControls();
+    applyFilters();
+    document.querySelector(".data-state").classList.remove("is-live");
+    $("dataStateText").textContent = message;
+    $("clearData").hidden = true;
+  }
+  async function restoreStoredDataset() {
+    try {
+      const stored = await readStoredDataset();
+      const restored = rehydrateStoredRows(stored?.rows);
+      if (!restored.length) { showEmptyState(); return; }
+      allData = restored;
+      resetControls();
+      applyFilters();
+      document.querySelector(".data-state").classList.add("is-live");
+      $("clearData").hidden = false;
+      $("dataStateText").textContent = `${stored.sourceName || "已上传数据"} · 已从当前浏览器恢复 · ${fmt.format(restored.length)} 条`;
+    } catch (error) {
+      showEmptyState("未读取到已保存数据 · 可重新上传");
+    }
+  }
 
   function validData(data) { return data.filter(item => item.valid); }
   function countBy(data, field) {
@@ -255,7 +317,7 @@
   }
   function renderAll() {
     renderMetrics(); renderVolumeTrend(); renderCategoryBars(); renderTopicTrend(); renderProductCompare(); renderSecondaryRanking(); renderTable();
-    const dates = allData.map(item=>item.date).filter(Boolean).sort((a,b)=>b-a); $("freshnessText").textContent = dates[0] ? `数据最新时间 ${dates[0].toLocaleString("zh-CN",{month:"long",day:"numeric",hour:"2-digit",minute:"2-digit"})}` : "未识别到有效时间字段";
+    const dates = allData.map(item=>item.date).filter(Boolean).sort((a,b)=>b-a); $("freshnessText").textContent = !allData.length ? "等待上传数据" : dates[0] ? `数据最新时间 ${dates[0].toLocaleString("zh-CN",{month:"long",day:"numeric",hour:"2-digit",minute:"2-digit"})}` : "未识别到有效时间字段";
   }
 
   function parseCSV(text) {
@@ -313,16 +375,18 @@
       const analysisScope = limitAnalysisRows(rows);
       const analysisRows = analysisScope.rows;
       const normalized = analysisRows.map(normalizeRecord);
-      setProgress(88,"正在完成问题分类",["stepRead","stepClean"]); await new Promise(r=>setTimeout(r,360));
-      allData = normalized; tableExpanded = false; $("questionSearch").value = ""; $("dateFilter").value = "30"; $("productFilter").value = "all"; $("categoryFilter").value = "all"; updateFilterOptions(); $("secondaryFilter").value = "all"; applyFilters();
+      setProgress(86,"正在完成问题分类",["stepRead","stepClean"]); await new Promise(r=>setTimeout(r,300));
+      setProgress(94,"正在保存到当前浏览器",["stepRead","stepClean"]);
+      await writeStoredDataset({ version: STORAGE_SCHEMA_VERSION, savedAt: new Date().toISOString(), sourceName: file.name, total: analysisScope.total, rows: normalized });
+      allData = normalized; resetControls(); applyFilters();
       setProgress(100,"分析完成，正在生成看板",["stepRead","stepClean","stepClassify"]); await new Promise(r=>setTimeout(r,450));
-      closeModal(); document.querySelector(".data-state").classList.add("is-live"); const validCount = validData(normalized).length; const scopeText = analysisScope.limited ? `分析前 ${fmt.format(analysisRows.length)} / ${fmt.format(analysisScope.total)} 条` : `${fmt.format(analysisScope.total)} 条`; $("dataStateText").textContent=`${file.name} · ${scopeText} · 有效 ${percent(validCount,analysisRows.length)}`; window.scrollTo({top:document.querySelector(".overview-section").offsetTop-70,behavior:"smooth"});
+      closeModal(); document.querySelector(".data-state").classList.add("is-live"); $("clearData").hidden = false; const validCount = validData(normalized).length; const scopeText = analysisScope.limited ? `分析前 ${fmt.format(analysisRows.length)} / ${fmt.format(analysisScope.total)} 条` : `${fmt.format(analysisScope.total)} 条`; $("dataStateText").textContent=`${file.name} · ${scopeText} · 有效 ${percent(validCount,analysisRows.length)} · 已保存`; window.scrollTo({top:document.querySelector(".overview-section").offsetTop-70,behavior:"smooth"});
     } catch (error) { $("uploadError").textContent = error.message || "文件解析失败"; setProgress(0,"分析未完成"); }
   }
   function openModal() { $("uploadModal").hidden=false; document.body.style.overflow="hidden"; $("analysisProgress").hidden=true; $("uploadError").textContent=""; $("fileInput").value=""; }
   function closeModal() { $("uploadModal").hidden=true; document.body.style.overflow=""; }
 
-  const dashboardApi = Object.freeze({ classifyQuestion, normalizeProduct, parseDateValue, parseCSV, parseFile, limitAnalysisRows, normalizeRecord, findField, getState: () => ({ allData: [...allData], filteredData: [...filteredData] }) });
+  const dashboardApi = Object.freeze({ classifyQuestion, normalizeProduct, parseDateValue, parseCSV, parseFile, limitAnalysisRows, normalizeRecord, findField, rehydrateStoredRows, getState: () => ({ allData: [...allData], filteredData: [...filteredData] }) });
   if (typeof module !== "undefined" && module.exports) { module.exports = dashboardApi; return; }
   window.QuestionDashboard = dashboardApi;
 
@@ -337,7 +401,12 @@
   $("resetFilters").addEventListener("click",()=>{$("dateFilter").value="30";$("productFilter").value="all";$("categoryFilter").value="all";updateSecondaryOptions();$("secondaryFilter").value="all";$("questionSearch").value="";tableExpanded=false;applyFilters();});
   $("questionSearch").addEventListener("input",renderTable);
   $("showMore").addEventListener("click",()=>{tableExpanded=!tableExpanded;renderTable();});
+  $("clearData").addEventListener("click",async()=>{
+    if (!window.confirm("确定清除当前浏览器中保存的全部提问数据吗？此操作无法撤销。")) return;
+    try { await deleteStoredDataset(); showEmptyState("已清除保存数据 · 等待重新上传"); }
+    catch (error) { $("dataStateText").textContent = "数据清除失败 · 请重试"; }
+  });
   document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!$("uploadModal").hidden)closeModal();});
 
-  updateFilterOptions(); applyFilters();
+  restoreStoredDataset();
 })();
