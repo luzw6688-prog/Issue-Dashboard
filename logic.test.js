@@ -82,3 +82,12 @@ test("large inputs have a deterministic and explicit analysis scope", () => {
   assert.equal(scope.limited, true);
   assert.equal(scope.rows.at(-1).index, 49999);
 });
+
+test("stored rows restore dates without changing missing values", () => {
+  const restored = api.rehydrateStoredRows([
+    { question: "最近适合换工作吗？", date: "2026-08-05T10:30:00.000Z" },
+    { question: "这段感情还值得继续吗？", date: null },
+  ]);
+  assert.equal(restored[0].date.toISOString(), "2026-08-05T10:30:00.000Z");
+  assert.equal(restored[1].date, null);
+});
