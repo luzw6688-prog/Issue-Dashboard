@@ -3,25 +3,44 @@
 
   const CATEGORY_RULES = [
     ["感情婚恋", [
-      ["复合", /复合|前任|回来找我|重新在一起/], ["对方想法", /他.*想|她.*想|喜欢我|爱我|心里.*我|态度/], ["婚姻", /结婚|婚姻|离婚|夫妻|老公|老婆/], ["桃花", /桃花|对象|脱单|姻缘|恋爱/], ["关系走向", /感情|关系|缘分|在一起|分手|暧昧|第三者/]
+      ["复合", /复合|复联|挽回|前任|前男友|前女友|重新在一起|重归于好/], ["对方想法", /(?:他|她|对方).{0,10}(?:想法|怎么想|态度|心里|喜欢|爱|在意)|喜欢我|爱我/], ["婚姻", /结婚|婚姻|离婚|夫妻|老公|老婆|丈夫|妻子|婚期/], ["桃花", /桃花|对象|脱单|姻缘|恋爱|相亲|正缘|伴侣/], ["联系互动", /(?:他|她|对方).{0,10}(?:联系|找我|回我|回复|回消息|主动)|不回消息|断联|拉黑|删除好友/], ["关系走向", /感情|恋爱关系|两人关系|我们的关系|我和.{0,8}(?:关系|缘分)|缘分|在一起|分手|冷战|暧昧|第三者|出轨|异地恋|走下去|有结果|有未来/]
     ]],
     ["事业工作", [
-      ["求职录用", /面试|录用|offer|入职|找到工作|求职/], ["换工作", /换工作|跳槽|辞职|离职|职业方向/], ["晋升加薪", /升职|晋升|加薪|提拔/], ["创业", /创业|开公司/], ["项目成败", /项目|工作.*成|事业|职场|老板|领导/]
+      ["求职录用", /面试|录用|offer|入职|入编|找到工作|求职|应聘|招聘/], ["换工作", /换工作|跳槽|辞职|离职|转岗|调岗|职业方向|工作变动/], ["晋升加薪", /升职|晋升|加薪|提拔|转正|评职称/], ["创业", /创业|开公司|创办|合伙创业/], ["项目成败", /项目|工作.{0,8}(?:成|顺利|结果)|事业|职场|老板|领导|业绩|客户|订单/]
     ]],
     ["财运财富", [
-      ["投资", /投资|股票|基金|币|理财/], ["副业", /副业|兼职/], ["生意", /生意|赚钱|财运|收入|盈利/], ["合作", /合伙|合作/], ["回款", /回款|欠款|债务|借钱/]
+      ["投资", /投资|股票|基金|期货|币圈|理财|炒股|收益率/], ["副业", /副业|兼职|第二收入/], ["生意", /生意|赚钱|财运|收入|盈利|亏损|营收|客源|店铺/], ["合作", /商业合作|生意合作|合伙做生意|合伙投资/], ["回款", /回款|欠款|债务|借钱|还钱|收款|账款/]
     ]],
-    ["综合运势", [["近期运势", /运势|最近.*顺|近期.*如何|未来.*如何/], ["年度流年", /流年|今年|明年|年度/], ["人生方向", /人生|命运|方向|未来发展/]]],
-    ["学业考试", [["考试结果", /考试|考过|通过|成绩|上岸/], ["升学", /升学|学校|大学|高中/], ["考研考公", /考研|考公|公务员|编制/], ["留学", /留学|出国读书/], ["专业选择", /专业|学业/]]],
-    ["人际关系", [["职场人际", /同事|领导|老板/], ["朋友关系", /朋友|友情|闺蜜/], ["贵人与小人", /贵人|小人/], ["合作伙伴", /伙伴|合伙人/]]],
-    ["家庭子女", [["父母", /父母|爸爸|妈妈|家人|长辈/], ["子女", /孩子|子女|儿子|女儿/], ["生育", /怀孕|生育|宝宝/], ["家庭关系", /家庭|家里/]]],
-    ["健康状态", [["身体状态", /健康|身体|生病|疾病|医院|手术/], ["身心压力", /焦虑|抑郁|失眠|压力|情绪/]]],
-    ["时机选择", [["联系表白", /联系|表白|主动/], ["签约开业", /签约|开业|开店/], ["搬家出行", /搬家|出行|旅行|出差/], ["择日", /时机|什么时候|哪天|择日/]]],
-    ["具体事件", [["失物", /丢|失物|找回|不见了/], ["事情成败", /能否办成|会不会成功|结果如何|事情.*成/], ["交易结果", /交易|买房|卖房|合同/], ["失联", /失联|联系不上/]]]
+    ["综合运势", [["近期运势", /运势|近况|最近.{0,8}(?:顺|发展|如何)|近期.{0,8}(?:如何|怎样)|未来.{0,8}(?:如何|发展)/], ["年度流年", /流年|今年|明年|本年度|下半年|上半年/], ["人生方向", /人生|命运|方向|未来发展|迷茫|转运/]]],
+    ["学业考试", [["考试结果", /考试|考过|通过|成绩|分数|上岸|录取|笔试|面试成绩/], ["升学", /升学|学校|大学|高中|中考|高考|小升初/], ["考研考公", /考研|考公|公务员|事业编|编制|研究生/], ["留学", /留学|出国读书|学校申请|签证学习/], ["专业选择", /专业|学业|选科|课程|论文|毕业/]]],
+    ["人际关系", [["职场人际", /同事|领导|老板|上司|下属|职场关系/], ["朋友关系", /朋友|友情|闺蜜|兄弟|室友|同学关系/], ["贵人与小人", /贵人|小人|被人针对|背后使坏/], ["合作伙伴", /合作伙伴|伙伴|合伙人|搭档/]]],
+    ["家庭子女", [["父母", /父母|爸爸|妈妈|父亲|母亲|家人|长辈|公婆|岳父|岳母/], ["子女", /孩子|子女|儿子|女儿|小孩|亲子/], ["生育", /怀孕|生育|备孕|宝宝|胎儿|生产/], ["家庭关系", /家庭|家里|亲戚|兄弟姐妹|婆媳|家庭关系/]]],
+    ["健康状态", [["身体状态", /健康|身体|生病|疾病|医院|手术|康复|体检|病情|症状|疼痛|治疗/], ["身心压力", /焦虑|抑郁|失眠|压力|情绪|心情|精神状态|内耗/]]],
+    ["房产居住", [["买卖租赁", /买房|卖房|购房|房产|房子|租房|出租|房贷|过户/], ["装修搬迁", /装修|搬家|乔迁|入住|居住环境/]]],
+    ["出行迁移", [["旅行出行", /旅行|旅游|出行|出差|行程|旅途/], ["异地迁移", /移民|迁移|异地|定居|换城市|去外地|回老家/], ["出国签证", /出国|签证|海外|国外发展/]]],
+    ["法律纠纷", [["诉讼仲裁", /官司|诉讼|起诉|仲裁|法院|判决|律师/], ["纠纷维权", /纠纷|维权|报警|赔偿|争议|被骗|诈骗/], ["合同争议", /合同纠纷|违约|解约|劳动仲裁/]]],
+    ["时机选择", [["联系表白", /(?:何时|什么时候|现在|近期|最近|适合).{0,8}(?:联系|表白|主动)|联系.{0,6}(?:时机|合适)/], ["签约开业", /(?:何时|哪天|什么时候|适合).{0,8}(?:签约|开业|开店)/], ["搬家出行", /(?:何时|哪天|什么时候|近期|最近|适合).{0,8}(?:搬家|出行|旅行|出差)/], ["择日", /时机|什么时候|何时|哪天|吉日|择日/]]],
+    ["具体事件", [["失物", /丢失|丢了|失物|找回|不见了|遗失/], ["消息进展", /有消息|收到消息|等消息|通知|回复|答复|进展/], ["事情成败", /能否办成|会不会成功|能不能成功|结果如何|事情.{0,6}(?:成|结果)|这件事|此事|能成吗|顺利吗/], ["交易结果", /交易|买卖|成交|合同.{0,6}(?:结果|顺利)/], ["失联", /失联|联系不上|找不到人|走失/]]],
+    ["选择决策", [["两难选择", /还是|二选一|怎么选|如何选择|选哪个/], ["行动建议", /要不要|该不该|应不应该|是否值得|值不值得|是否适合/]]]
   ];
-  const CATEGORY_PRIORITY = ["感情婚恋", "学业考试", "健康状态", "人际关系", "家庭子女", "事业工作", "财运财富", "具体事件", "时机选择", "综合运势"];
+  const CATEGORY_PRIORITY = ["感情婚恋", "学业考试", "健康状态", "法律纠纷", "人际关系", "家庭子女", "事业工作", "财运财富", "房产居住", "出行迁移", "具体事件", "时机选择", "综合运势", "选择决策"];
+  const GENERIC_CATEGORIES = new Set(["具体事件", "时机选择", "综合运势", "选择决策"]);
+  const PRIMARY_FALLBACK_RULES = [
+    ["感情婚恋", "其他感情", /恋爱|感情|爱情|婚恋|姻缘|缘分|桃花|对象|伴侣|男朋友|女朋友|男友|女友|喜欢|暗恋|相亲|单身|夫妻|婚姻/],
+    ["学业考试", "其他学业", /学习|学业|考试|学校|升学|成绩|毕业|论文|读书|录取|专业|考研|考公/],
+    ["健康状态", "其他健康", /健康|身体|病|医院|医生|治疗|康复|手术|体检|睡眠|情绪|心理|精神|压力/],
+    ["法律纠纷", "其他法律", /法律|官司|诉讼|仲裁|法院|律师|纠纷|维权|违约|赔偿|报警/],
+    ["家庭子女", "其他家庭", /家庭|家人|父母|孩子|子女|亲戚|长辈|兄弟姐妹|婆媳/],
+    ["人际关系", "其他人际", /人际|朋友|同事|同学|闺蜜|伙伴|合伙人|贵人|小人|相处|关系处理/],
+    ["事业工作", "其他事业", /工作|事业|职业|公司|单位|岗位|职场|领导|老板|客户|项目|创业|就业|求职|生意经营/],
+    ["财运财富", "其他财运", /钱|财富|财运|收入|工资|收益|亏损|投资|理财|债务|欠款|回款|赚钱|资金/],
+    ["房产居住", "其他房产", /房|住宅|楼盘|租住|居住|装修|搬家|房贷|物业/],
+    ["出行迁移", "其他迁移", /出行|旅行|旅游|出差|出国|移民|异地|迁移|定居|外地/],
+    ["综合运势", "综合咨询", /运势|命运|未来|以后|发展|走势|近况|顺不顺|转运/]
+  ];
   const CATEGORY_COLORS = ["#62e8ff", "#9d8cff", "#ffb86b", "#5da8ff", "#7ce7b6"];
   const MAX_ANALYSIS_ROWS = 50000;
+  const CLASSIFIER_VERSION = 2;
   const STORAGE_DB_NAME = "wenxiang-question-dashboard";
   const STORAGE_STORE_NAME = "datasets";
   const STORAGE_RECORD_KEY = "active-dataset";
@@ -47,16 +66,21 @@
     });
   }
   function classifyQuestion(text) {
-    const value = String(text || "").trim();
+    const value = String(text || "").trim().replace(/[復財運業學試醫買賣遷離職錢體關係會時麼]/g, char => ({ 復:"复", 財:"财", 運:"运", 業:"业", 學:"学", 試:"试", 醫:"医", 買:"买", 賣:"卖", 遷:"迁", 離:"离", 職:"职", 錢:"钱", 體:"体", 關:"关", 係:"系", 會:"会", 時:"时", 麼:"么" }[char]));
     if (!value || value.length < 3 || /^(test|测试|你好|您好|哈喽|hello|123+)$/i.test(value)) return { primary: "无效问题", secondary: "无效内容", valid: false };
     const candidates = [];
     for (const [primary, secondaryRules] of CATEGORY_RULES) {
       for (const [secondary, pattern] of secondaryRules) {
-        if (pattern.test(value)) candidates.push({ primary, secondary, valid: true });
+        if (pattern.test(value)) candidates.push({ primary, secondary, score: GENERIC_CATEGORIES.has(primary) ? 2 : 3 });
       }
     }
-    candidates.sort((a, b) => CATEGORY_PRIORITY.indexOf(a.primary) - CATEGORY_PRIORITY.indexOf(b.primary));
-    return candidates[0] || { primary: "其他", secondary: "无法判断", valid: true };
+    for (const [primary, secondary, pattern] of PRIMARY_FALLBACK_RULES) {
+      if (pattern.test(value)) candidates.push({ primary, secondary, score: 2 });
+    }
+    candidates.sort((a, b) => b.score - a.score || CATEGORY_PRIORITY.indexOf(a.primary) - CATEGORY_PRIORITY.indexOf(b.primary));
+    if (!candidates.length) return { primary: "其他", secondary: "无法判断", valid: true };
+    const { primary, secondary } = candidates[0];
+    return { primary, secondary, valid: true };
   }
   function normalizeProduct(value, platform) {
     const text = `${value || ""} ${platform || ""}`.toLowerCase();
@@ -157,6 +181,9 @@
   function rehydrateStoredRows(rows) {
     return Array.isArray(rows) ? rows.map(item => ({ ...item, date: parseDateValue(item?.date) })) : [];
   }
+  function reclassifyStoredRows(rows) {
+    return rehydrateStoredRows(rows).map(item => ({ ...item, ...classifyQuestion(item.question) }));
+  }
   function resetControls() {
     tableExpanded = false;
     $("questionSearch").value = "";
@@ -177,14 +204,18 @@
   async function restoreStoredDataset() {
     try {
       const stored = await readStoredDataset();
-      const restored = rehydrateStoredRows(stored?.rows);
+      const classifierUpdated = stored?.classifierVersion !== CLASSIFIER_VERSION;
+      const restored = classifierUpdated ? reclassifyStoredRows(stored?.rows) : rehydrateStoredRows(stored?.rows);
       if (!restored.length) { showEmptyState(); return; }
+      if (classifierUpdated) {
+        await writeStoredDataset({ ...stored, classifierVersion: CLASSIFIER_VERSION, reclassifiedAt: new Date().toISOString(), rows: restored });
+      }
       allData = restored;
       resetControls();
       applyFilters();
       document.querySelector(".data-state").classList.add("is-live");
       $("clearData").hidden = false;
-      $("dataStateText").textContent = `${stored.sourceName || "已上传数据"} · 已从当前浏览器恢复 · ${fmt.format(restored.length)} 条`;
+      $("dataStateText").textContent = `${stored.sourceName || "已上传数据"} · ${classifierUpdated ? "已按新版规则重新分类" : "已从当前浏览器恢复"} · ${fmt.format(restored.length)} 条`;
     } catch (error) {
       showEmptyState("未读取到已保存数据 · 可重新上传");
     }
@@ -377,7 +408,7 @@
       const normalized = analysisRows.map(normalizeRecord);
       setProgress(86,"正在完成问题分类",["stepRead","stepClean"]); await new Promise(r=>setTimeout(r,300));
       setProgress(94,"正在保存到当前浏览器",["stepRead","stepClean"]);
-      await writeStoredDataset({ version: STORAGE_SCHEMA_VERSION, savedAt: new Date().toISOString(), sourceName: file.name, total: analysisScope.total, rows: normalized });
+      await writeStoredDataset({ version: STORAGE_SCHEMA_VERSION, classifierVersion: CLASSIFIER_VERSION, savedAt: new Date().toISOString(), sourceName: file.name, total: analysisScope.total, rows: normalized });
       allData = normalized; resetControls(); applyFilters();
       setProgress(100,"分析完成，正在生成看板",["stepRead","stepClean","stepClassify"]); await new Promise(r=>setTimeout(r,450));
       closeModal(); document.querySelector(".data-state").classList.add("is-live"); $("clearData").hidden = false; const validCount = validData(normalized).length; const scopeText = analysisScope.limited ? `分析前 ${fmt.format(analysisRows.length)} / ${fmt.format(analysisScope.total)} 条` : `${fmt.format(analysisScope.total)} 条`; $("dataStateText").textContent=`${file.name} · ${scopeText} · 有效 ${percent(validCount,analysisRows.length)} · 已保存`; window.scrollTo({top:document.querySelector(".overview-section").offsetTop-70,behavior:"smooth"});
@@ -386,7 +417,7 @@
   function openModal() { $("uploadModal").hidden=false; document.body.style.overflow="hidden"; $("analysisProgress").hidden=true; $("uploadError").textContent=""; $("fileInput").value=""; }
   function closeModal() { $("uploadModal").hidden=true; document.body.style.overflow=""; }
 
-  const dashboardApi = Object.freeze({ classifyQuestion, normalizeProduct, parseDateValue, parseCSV, parseFile, limitAnalysisRows, normalizeRecord, findField, rehydrateStoredRows, getState: () => ({ allData: [...allData], filteredData: [...filteredData] }) });
+  const dashboardApi = Object.freeze({ classifyQuestion, normalizeProduct, parseDateValue, parseCSV, parseFile, limitAnalysisRows, normalizeRecord, findField, rehydrateStoredRows, reclassifyStoredRows, getState: () => ({ allData: [...allData], filteredData: [...filteredData] }) });
   if (typeof module !== "undefined" && module.exports) { module.exports = dashboardApi; return; }
   window.QuestionDashboard = dashboardApi;
 
