@@ -293,6 +293,34 @@
   function countBy(data, field) {
     return data.reduce((acc, item) => { const key = item[field] || "未知"; acc[key] = (acc[key] || 0) + 1; return acc; }, {});
   }
+  function normalizeQuestionForRepeat(text) {
+    return String(text || "").normalize("NFKC").trim().toLowerCase().replace(/\s+/g, " ").replace(/[。！？!?.,，；;:：]+$/g, "").trim();
+  }
+  function hasUsableUserId(value) {
+    const normalized = String(value ?? "").normalize("NFKC").trim().toLowerCase();
+    return Boolean(normalized) && !/^(?:unknown(?: visitor)?|anonymous|匿名|未知|无|暂无|—|-|null|undefined|n\/a|na)$/i.test(normalized);
+  }
+  function calculateRepeatQuestionMetrics(data) {
+    const eligible = (Array.isArray(data) ? data : []).filter(item => item?.valid && hasUsableUserId(item.user) && normalizeQuestionForRepeat(item.question));
+    const groups = new Map();
+    for (const item of eligible) {
+      const questionKey = normalizeQuestionForRepeat(item.question);
+      const key = `${String(item.user)}\u0000${questionKey}`;
+      const current = groups.get(key) || { user: String(item.user), count: 0 };
+      current.count += 1;
+      groups.set(key, current);
+    }
+    const repeatUsers = new Set();
+    let repeatedQuestionCount = 0;
+    let repeatedGroupCount = 0;
+    for (const group of groups.values()) {
+      if (group.count < 2) continue;
+      repeatUsers.add(group.user);
+      repeatedQuestionCount += group.count - 1;
+      repeatedGroupCount += 1;
+    }
+    return { repeatUserCount: repeatUsers.size, repeatedQuestionCount, repeatedGroupCount, eligibleRecordCount: eligible.length };
+  }
   function sortedEntries(object) { return Object.entries(object).sort((a, b) => b[1] - a[1]); }
   function dateKey(date) { return `${date.getMonth() + 1}/${date.getDate()}`; }
   function getDateAnchor() {
@@ -340,7 +368,7 @@
 
   function renderMetrics() {
     const valid = validData(filteredData);
-    const knownUsers = valid.filter(item => item.user);
+    const knownUsers = valid.filter(item => hasUsableUserId(item.user));
     const users = new Set(knownUsers.map(item => item.user)).size;
     const categories = sortedEntries(countBy(valid, "primary"));
     const unclassified = valid.filter(item => item.primary === "其他").length;
@@ -353,6 +381,16 @@
       ["无法分类率", percent(unclassified, valid.length), `归入“其他” ${fmt.format(unclassified)} 条`]
     ];
     $("metricGrid").innerHTML = values.map((item, index) => `<article class="metric-card ${item[3] ? "primary" : ""}" data-index="0${index + 1}" style="animation-delay:${index * 55}ms"><span class="metric-label">${item[0]}</span><strong class="metric-value">${item[1]}</strong><span class="metric-note">${item[2]}</span></article>`).join("");
+  }
+  function renderRepeatInsight() {
+    const metrics = calculateRepeatQuestionMetrics(filteredData);
+    const validCount = validData(filteredData).length;
+    const coverage = validCount ? metrics.eligibleRecordCount / validCount : 0;
+    $("repeatUserCount").textContent = metrics.eligibleRecordCount ? fmt.format(metrics.repeatUserCount) : "—";
+    $("repeatQuestionCount").textContent = metrics.eligibleRecordCount ? fmt.format(metrics.repeatedQuestionCount) : "—";
+    $("repeatCoverage").textContent = metrics.eligibleRecordCount ? `用户 ID 可计算记录 ${fmt.format(metrics.eligibleRecordCount)} 条 · 覆盖 ${(coverage * 100).toFixed(1)}%` : "当前范围缺少可用用户 ID";
+    $("repeatUserNote").textContent = metrics.repeatUserCount ? `${fmt.format(metrics.repeatedGroupCount)} 个“用户 × 问题”重复组合` : "当前范围未发现重复用户";
+    $("repeatQuestionNote").textContent = "仅计算同一用户首次之后的记录";
   }
 
   function lineSvg(series, options = {}) {
@@ -415,7 +453,7 @@
     $("showMore").hidden = rows.length <= 12; $("showMore").textContent = tableExpanded ? "收起" : "展开更多";
   }
   function renderAll() {
-    renderMetrics(); renderVolumeTrend(); renderCategoryBars(); renderTopicTrend(); renderProductCompare(); renderSecondaryRanking(); renderTable();
+    renderMetrics(); renderRepeatInsight(); renderVolumeTrend(); renderCategoryBars(); renderTopicTrend(); renderProductCompare(); renderSecondaryRanking(); renderTable();
     const dates = allData.map(item=>item.date).filter(Boolean).sort((a,b)=>b-a); $("freshnessText").textContent = !allData.length ? "等待上传数据" : dates[0] ? `数据最新时间 ${dates[0].toLocaleString("zh-CN",{month:"long",day:"numeric",hour:"2-digit",minute:"2-digit"})}` : "未识别到有效时间字段";
   }
 
@@ -485,7 +523,7 @@
   function openModal() { $("uploadModal").hidden=false; document.body.style.overflow="hidden"; $("analysisProgress").hidden=true; $("uploadError").textContent=""; $("fileInput").value=""; }
   function closeModal() { $("uploadModal").hidden=true; document.body.style.overflow=""; }
 
-  const dashboardApi = Object.freeze({ classifyQuestion, normalizeProduct, parseDateValue, parseCSV, parseFile, limitAnalysisRows, normalizeRecord, findField, rehydrateStoredRows, reclassifyStoredRows, getState: () => ({ allData: [...allData], filteredData: [...filteredData] }) });
+  const dashboardApi = Object.freeze({ classifyQuestion, normalizeProduct, parseDateValue, parseCSV, parseFile, limitAnalysisRows, normalizeRecord, findField, rehydrateStoredRows, reclassifyStoredRows, normalizeQuestionForRepeat, hasUsableUserId, calculateRepeatQuestionMetrics, getState: () => ({ allData: [...allData], filteredData: [...filteredData] }) });
   if (typeof module !== "undefined" && module.exports) { module.exports = dashboardApi; return; }
   window.QuestionDashboard = dashboardApi;
 
