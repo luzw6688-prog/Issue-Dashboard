@@ -226,3 +226,21 @@ test("repeat normalization keeps semantic text while ignoring case, spacing and 
   assert.equal(api.normalizeQuestionForRepeat("  HOW   ARE YOU？！ "), "how are you");
   assert.notEqual(api.normalizeQuestionForRepeat("how are you"), api.normalizeQuestionForRepeat("how were you"));
 });
+
+test("shared rows remove source identifiers and hash user IDs", async () => {
+  const [row] = await api.prepareSharedRows([{
+    id: "raw-question-id",
+    question: "Will it work?",
+    date: new Date("2026-08-06T03:00:00.000Z"),
+    user: "raw-user-123",
+    product: "Web",
+    platform: "browser",
+    primary: "具体事件",
+    secondary: "事情成败",
+    valid: true,
+  }]);
+  assert.equal("id" in row, false);
+  assert.match(row.user, /^sha256:[a-f0-9]{64}$/);
+  assert.notEqual(row.user, "raw-user-123");
+  assert.equal(row.date, "2026-08-06T03:00:00.000Z");
+});
