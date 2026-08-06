@@ -194,3 +194,35 @@ test("high-frequency words do not override their sentence context", () => {
     assert.equal(api.classifyQuestion(question).primary, primary, question);
   }
 });
+
+test("repeat-question metrics count users and only repeats after the first record", () => {
+  const rows = [
+    { user: "u1", question: "Will it work?", valid: true },
+    { user: "u1", question: "  will it work  ", valid: true },
+    { user: "u1", question: "A different question", valid: true },
+    { user: "u2", question: "同一个问题？", valid: true },
+    { user: "u2", question: "同一个问题", valid: true },
+    { user: "u2", question: "同一个问题！", valid: true },
+    { user: null, question: "Will it work?", valid: true },
+    { user: "anonymous", question: "Will it work?", valid: true },
+    { user: "u3", question: "Will it work?", valid: false },
+  ];
+  assert.deepEqual(api.calculateRepeatQuestionMetrics(rows), {
+    repeatUserCount: 2,
+    repeatedQuestionCount: 3,
+    repeatedGroupCount: 2,
+    eligibleRecordCount: 6,
+  });
+});
+
+test("repeat-question metrics exclude placeholder user identifiers", () => {
+  for (const value of [null, "", "unknown", "Unknown visitor", "anonymous", "未知", "—", "N/A"]) {
+    assert.equal(api.hasUsableUserId(value), false, String(value));
+  }
+  assert.equal(api.hasUsableUserId("user-001"), true);
+});
+
+test("repeat normalization keeps semantic text while ignoring case, spacing and trailing punctuation", () => {
+  assert.equal(api.normalizeQuestionForRepeat("  HOW   ARE YOU？！ "), "how are you");
+  assert.notEqual(api.normalizeQuestionForRepeat("how are you"), api.normalizeQuestionForRepeat("how were you"));
+});
