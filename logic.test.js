@@ -91,3 +91,54 @@ test("stored rows restore dates without changing missing values", () => {
   assert.equal(restored[0].date.toISOString(), "2026-08-05T10:30:00.000Z");
   assert.equal(restored[1].date, null);
 });
+
+test("expanded classifier covers common divination questions across domains", () => {
+  const cases = [
+    ["我和男朋友最近总冷战，还能继续吗？", "感情婚恋"],
+    ["他还会主动联系我吗？", "感情婚恋"],
+    ["我们两个人以后能走下去吗？", "感情婚恋"],
+    ["单位这次会给我转正吗？", "事业工作"],
+    ["最近跳槽到新公司是否合适？", "事业工作"],
+    ["这个项目最后能顺利交付吗？", "事业工作"],
+    ["今年工资收入能提高吗？", "财运财富"],
+    ["欠我的钱什么时候可以收回来？", "财运财富"],
+    ["投资这只基金会有收益吗？", "财运财富"],
+    ["论文答辩能顺利通过吗？", "学业考试"],
+    ["孩子这次高考能考好吗？", "学业考试"],
+    ["婆媳关系什么时候能缓和？", "家庭子女"],
+    ["这次体检结果会不会有问题？", "健康状态"],
+    ["最近总是失眠，身体状态如何？", "健康状态"],
+    ["这套房子今年能顺利过户吗？", "房产居住"],
+    ["去国外发展是否适合我？", "出行迁移"],
+    ["劳动仲裁结果对我有利吗？", "法律纠纷"],
+    ["闺蜜为什么突然疏远我？", "人际关系"],
+    ["未来半年整体发展怎么样？", "综合运势"],
+    ["什么时候适合开店？", "时机选择"],
+    ["丢失的证件还能找回来吗？", "具体事件"],
+    ["这件事最后会有消息吗？", "具体事件"],
+    ["A方案还是B方案，应该选哪个？", "选择决策"],
+    ["今年財運會變好嗎？", "财运财富"],
+  ];
+  for (const [question, primary] of cases) {
+    assert.equal(api.classifyQuestion(question).primary, primary, question);
+  }
+  const otherRate = cases.filter(([question]) => api.classifyQuestion(question).primary === "其他").length / cases.length;
+  assert.ok(otherRate <= 0.05, `representative other rate was ${otherRate}`);
+});
+
+test("stored classifications can be recalculated without losing row metadata", () => {
+  const [restored] = api.reclassifyStoredRows([{
+    id: "Q-old-1",
+    question: "他还会主动联系我吗？",
+    date: "2026-08-05T10:30:00.000Z",
+    product: "Web",
+    primary: "其他",
+    secondary: "无法判断",
+    valid: true,
+  }]);
+  assert.equal(restored.id, "Q-old-1");
+  assert.equal(restored.product, "Web");
+  assert.equal(restored.date.toISOString(), "2026-08-05T10:30:00.000Z");
+  assert.equal(restored.primary, "感情婚恋");
+  assert.equal(restored.secondary, "联系互动");
+});
