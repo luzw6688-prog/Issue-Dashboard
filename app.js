@@ -554,16 +554,28 @@
     if (["xlsx","xls"].includes(ext)) {
       if (!window.XLSX) throw new Error("Excel 解析组件尚未加载，请稍后重试或上传 CSV");
       const workbook = XLSX.read(await file.arrayBuffer(),{type:"array",cellDates:true});
-      return workbook.SheetNames.flatMap(sheetName => {
-        const sheetRows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName],{defval:"",raw:true});
-        const hasQuestionField = sheetRows.slice(0,20).some(row => findField(row,"question"));
-        return hasQuestionField ? sheetRows.map(row => ({...row,__sheet:sheetName})) : [];
-      });
+      const selected = selectBestAnalysisSheet(workbook.SheetNames.map(sheetName => ({
+        name: sheetName,
+        rows: XLSX.utils.sheet_to_json(workbook.Sheets[sheetName],{defval:"",raw:true}),
+      })));
+      if (!selected) throw new Error("Excel 中未找到包含提问字段的明细表");
+      return selected.rows.map(row => ({...row,__sheet:selected.name}));
     }
     throw new Error("暂不支持该文件格式");
   }
   function limitAnalysisRows(rows) {
     return { rows: rows.slice(0, MAX_ANALYSIS_ROWS), total: rows.length, limited: rows.length > MAX_ANALYSIS_ROWS };
+  }
+  function selectBestAnalysisSheet(sheets) {
+    const candidates = (Array.isArray(sheets) ? sheets : []).map(sheet => {
+      const rows = Array.isArray(sheet?.rows) ? sheet.rows : [];
+      const sample = rows.slice(0, 20);
+      const hasField = field => sample.some(row => findField(row, field));
+      const score = (hasField("user") ? 8 : 0) + (hasField("date") ? 3 : 0) + (hasField("product") ? 2 : 0) + (hasField("platform") ? 1 : 0);
+      return { name: String(sheet?.name || ""), rows, hasQuestion: hasField("question"), score };
+    }).filter(sheet => sheet.hasQuestion && sheet.rows.length);
+    candidates.sort((a, b) => b.score - a.score || b.rows.length - a.rows.length);
+    return candidates[0] || null;
   }
   async function handleFile(file) {
     if (!file) return;
@@ -593,7 +605,7 @@
   function openModal() { $("uploadModal").hidden=false; document.body.style.overflow="hidden"; $("analysisProgress").hidden=true; $("uploadError").textContent=""; $("fileInput").value=""; $("adminPasscodeField").hidden=!cloudSharingAvailable(); }
   function closeModal() { $("uploadModal").hidden=true; document.body.style.overflow=""; $("adminPasscode").value=""; }
 
-  const dashboardApi = Object.freeze({ classifyQuestion, normalizeProduct, parseDateValue, parseCSV, parseFile, limitAnalysisRows, normalizeRecord, findField, rehydrateStoredRows, reclassifyStoredRows, normalizeQuestionForRepeat, hasUsableUserId, calculateRepeatQuestionMetrics, hashUserIdentifier, prepareSharedRows, getState: () => ({ allData: [...allData], filteredData: [...filteredData] }) });
+  const dashboardApi = Object.freeze({ classifyQuestion, normalizeProduct, parseDateValue, parseCSV, parseFile, limitAnalysisRows, selectBestAnalysisSheet, normalizeRecord, findField, rehydrateStoredRows, reclassifyStoredRows, normalizeQuestionForRepeat, hasUsableUserId, calculateRepeatQuestionMetrics, hashUserIdentifier, prepareSharedRows, getState: () => ({ allData: [...allData], filteredData: [...filteredData] }) });
   if (typeof module !== "undefined" && module.exports) { module.exports = dashboardApi; return; }
   window.QuestionDashboard = dashboardApi;
 
