@@ -244,3 +244,12 @@ test("shared rows remove source identifiers and hash user IDs", async () => {
   assert.notEqual(row.user, "raw-user-123");
   assert.equal(row.date, "2026-08-06T03:00:00.000Z");
 });
+
+test("Excel import selects one best analysis sheet instead of double-counting duplicate sheets", () => {
+  const selected = api.selectBestAnalysisSheet([
+    { name: "All Records", rows: [{ Question: "Q1", "Created At": "2026-08-06", Platform: "web" }, { Question: "Q2", "Created At": "2026-08-06", Platform: "web" }] },
+    { name: "By User", rows: [{ "User ID": "u1", Question: "Q1", "Created At": "2026-08-06", Platform: "web" }, { "User ID": "u2", Question: "Q2", "Created At": "2026-08-06", Platform: "web" }] },
+  ]);
+  assert.equal(selected.name, "By User");
+  assert.equal(selected.rows.length, 2);
+});
