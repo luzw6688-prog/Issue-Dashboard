@@ -107,6 +107,10 @@
   const STORAGE_STORE_NAME = "datasets";
   const STORAGE_RECORD_KEY = "active-dataset";
   const STORAGE_SCHEMA_VERSION = 1;
+  const SUPABASE_URL = "https://reuzomfznynrzhwtmblv.supabase.co";
+  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_q5EtMfCMg3aIhdNeDUKbig_4d_8YtAg";
+  const SHARED_DATASET_URL = `${SUPABASE_URL}/rest/v1/dashboard_dataset?dataset_key=eq.main&select=payload,published_at,record_count`;
+  const SHARED_PUBLISH_URL = `${SUPABASE_URL}/functions/v1/dashboard-data`;
   const aliases = {
     question: ["question_text", "question", "questioncontent", "content", "message", "query", "prompt", "用户提问", "提问内容", "问题内容", "问卦内容", "问题"],
     date: ["created_at", "createdat", "event_timestamp", "eventtimestamp", "event_time", "eventtime", "question_time", "questiontime", "timestamp", "datetime", "date", "time", "提问时间", "创建时间", "日期时间", "日期"],
@@ -252,6 +256,54 @@
   function reclassifyStoredRows(rows) {
     return rehydrateStoredRows(rows).map(item => ({ ...item, ...classifyQuestion(item.question) }));
   }
+  function cloudSharingAvailable() {
+    return typeof location !== "undefined" && ["http:", "https:"].includes(location.protocol);
+  }
+  async function hashUserIdentifier(value) {
+    if (!hasUsableUserId(value)) return null;
+    if (!globalThis.crypto?.subtle) throw new Error("当前浏览器不支持用户 ID 脱敏");
+    const bytes = new TextEncoder().encode(String(value).normalize("NFKC").trim());
+    const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes);
+    return `sha256:${Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("")}`;
+  }
+  async function prepareSharedRows(rows) {
+    const values = Array.isArray(rows) ? rows : [];
+    const userHashes = new Map();
+    await Promise.all([...new Set(values.map(item => item?.user).filter(hasUsableUserId))].map(async user => userHashes.set(user, await hashUserIdentifier(user))));
+    return values.map(item => ({
+      question: String(item?.question || "").slice(0, 1200),
+      date: item?.date instanceof Date && !Number.isNaN(item.date.getTime()) ? item.date.toISOString() : parseDateValue(item?.date)?.toISOString?.() || null,
+      user: userHashes.get(item?.user) || null,
+      product: String(item?.product || "未知").slice(0, 40),
+      platform: String(item?.platform || "未知").slice(0, 80),
+      primary: String(item?.primary || "其他").slice(0, 40),
+      secondary: String(item?.secondary || "无法判断").slice(0, 60),
+      valid: item?.valid === true,
+    }));
+  }
+  async function readSharedDataset() {
+    const response = await fetch(SHARED_DATASET_URL, {
+      headers: { apikey: SUPABASE_PUBLISHABLE_KEY, authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}` },
+      cache: "no-store",
+    });
+    if (!response.ok) throw new Error(`共享数据读取失败（${response.status}）`);
+    const [record] = await response.json();
+    return record?.payload || null;
+  }
+  async function publishSharedDataset(dataset, passcode, action = "publish") {
+    const response = await fetch(SHARED_PUBLISH_URL, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ action, passcode, dataset }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || `共享数据发布失败（${response.status}）`);
+    return result;
+  }
   function resetControls() {
     tableExpanded = false;
     $("questionSearch").value = "";
@@ -261,7 +313,7 @@
     updateFilterOptions();
     $("secondaryFilter").value = "all";
   }
-  function showEmptyState(message = "尚未上传数据 · 数据仅保存在当前浏览器") {
+  function showEmptyState(message = "共享看板暂未发布数据") {
     allData = [];
     resetControls();
     applyFilters();
@@ -271,11 +323,11 @@
   }
   async function restoreStoredDataset() {
     try {
-      const stored = await readStoredDataset();
+      const stored = cloudSharingAvailable() ? await readSharedDataset() : await readStoredDataset();
       const classifierUpdated = stored?.classifierVersion !== CLASSIFIER_VERSION;
       const restored = classifierUpdated ? reclassifyStoredRows(stored?.rows) : rehydrateStoredRows(stored?.rows);
       if (!restored.length) { showEmptyState(); return; }
-      if (classifierUpdated) {
+      if (classifierUpdated && !cloudSharingAvailable()) {
         await writeStoredDataset({ ...stored, classifierVersion: CLASSIFIER_VERSION, reclassifiedAt: new Date().toISOString(), rows: restored });
       }
       allData = restored;
@@ -283,9 +335,22 @@
       applyFilters();
       document.querySelector(".data-state").classList.add("is-live");
       $("clearData").hidden = false;
-      $("dataStateText").textContent = `${stored.sourceName || "已上传数据"} · ${classifierUpdated ? "已按新版规则重新分类" : "已从当前浏览器恢复"} · ${fmt.format(restored.length)} 条`;
+      $("dataStateText").textContent = `${stored.sourceName || "共享数据"} · ${classifierUpdated ? "已按新版规则重新分类" : cloudSharingAvailable() ? "共享数据已同步" : "已从当前浏览器恢复"} · ${fmt.format(restored.length)} 条`;
     } catch (error) {
-      showEmptyState("未读取到已保存数据 · 可重新上传");
+      if (cloudSharingAvailable()) {
+        try {
+          const cached = await readStoredDataset();
+          const restored = rehydrateStoredRows(cached?.rows);
+          if (restored.length) {
+            allData = restored; resetControls(); applyFilters();
+            document.querySelector(".data-state").classList.add("is-live");
+            $("dataStateText").textContent = `共享连接失败 · 已显示本地缓存 ${fmt.format(restored.length)} 条`;
+            $("clearData").hidden = false;
+            return;
+          }
+        } catch (_) {}
+      }
+      showEmptyState(cloudSharingAvailable() ? "共享数据连接失败 · 请稍后刷新" : "未读取到本地数据 · 可重新上传");
     }
   }
 
@@ -505,6 +570,8 @@
     $("uploadError").textContent = ""; $("analysisProgress").hidden = false;
     const setProgress = (value,title,done=[]) => { $("progressBar").style.width=`${value}%`; $("progressPercent").textContent=`${value}%`; $("progressTitle").textContent=title; ["stepRead","stepClean","stepClassify"].forEach(id=>$(id).classList.toggle("is-done",done.includes(id))); };
     try {
+      const passcode = $("adminPasscode").value.trim();
+      if (cloudSharingAvailable() && !passcode) throw new Error("请输入管理员发布口令");
       setProgress(16,"正在读取文件"); const rows = await parseFile(file); if (!rows.length) throw new Error("文件中没有可读取的数据");
       const questionField = rows.slice(0,20).map(row => findField(row,"question")).find(Boolean); if (!questionField) throw new Error("未识别到提问内容字段，请使用 question_text、question、用户提问或提问内容");
       setProgress(42,`已识别 ${fmt.format(rows.length)} 条记录`,["stepRead"]); await new Promise(r=>setTimeout(r,280));
@@ -513,17 +580,20 @@
       const analysisRows = analysisScope.rows;
       const normalized = analysisRows.map(normalizeRecord);
       setProgress(86,"正在完成问题分类",["stepRead","stepClean"]); await new Promise(r=>setTimeout(r,300));
-      setProgress(94,"正在保存到当前浏览器",["stepRead","stepClean"]);
-      await writeStoredDataset({ version: STORAGE_SCHEMA_VERSION, classifierVersion: CLASSIFIER_VERSION, savedAt: new Date().toISOString(), sourceName: file.name, total: analysisScope.total, rows: normalized });
-      allData = normalized; resetControls(); applyFilters();
+      setProgress(94,cloudSharingAvailable() ? "正在发布到共享看板" : "正在保存到当前浏览器",["stepRead","stepClean"]);
+      const sharedRows = await prepareSharedRows(normalized);
+      const sharedPayload = { version: 2, classifierVersion: CLASSIFIER_VERSION, savedAt: new Date().toISOString(), sourceName: file.name, total: analysisScope.total, rows: sharedRows };
+      if (cloudSharingAvailable()) await publishSharedDataset(sharedPayload, passcode);
+      await writeStoredDataset(sharedPayload);
+      allData = rehydrateStoredRows(sharedRows); resetControls(); applyFilters();
       setProgress(100,"分析完成，正在生成看板",["stepRead","stepClean","stepClassify"]); await new Promise(r=>setTimeout(r,450));
-      closeModal(); document.querySelector(".data-state").classList.add("is-live"); $("clearData").hidden = false; const validCount = validData(normalized).length; const scopeText = analysisScope.limited ? `分析前 ${fmt.format(analysisRows.length)} / ${fmt.format(analysisScope.total)} 条` : `${fmt.format(analysisScope.total)} 条`; $("dataStateText").textContent=`${file.name} · ${scopeText} · 有效 ${percent(validCount,analysisRows.length)} · 已保存`; window.scrollTo({top:document.querySelector(".overview-section").offsetTop-70,behavior:"smooth"});
+      $("adminPasscode").value = ""; closeModal(); document.querySelector(".data-state").classList.add("is-live"); $("clearData").hidden = false; const validCount = validData(sharedRows).length; const scopeText = analysisScope.limited ? `分析前 ${fmt.format(analysisRows.length)} / ${fmt.format(analysisScope.total)} 条` : `${fmt.format(analysisScope.total)} 条`; $("dataStateText").textContent=`${file.name} · ${scopeText} · 有效 ${percent(validCount,analysisRows.length)} · ${cloudSharingAvailable() ? "已发布共享" : "已保存本地"}`; window.scrollTo({top:document.querySelector(".overview-section").offsetTop-70,behavior:"smooth"});
     } catch (error) { $("uploadError").textContent = error.message || "文件解析失败"; setProgress(0,"分析未完成"); }
   }
-  function openModal() { $("uploadModal").hidden=false; document.body.style.overflow="hidden"; $("analysisProgress").hidden=true; $("uploadError").textContent=""; $("fileInput").value=""; }
-  function closeModal() { $("uploadModal").hidden=true; document.body.style.overflow=""; }
+  function openModal() { $("uploadModal").hidden=false; document.body.style.overflow="hidden"; $("analysisProgress").hidden=true; $("uploadError").textContent=""; $("fileInput").value=""; $("adminPasscodeField").hidden=!cloudSharingAvailable(); }
+  function closeModal() { $("uploadModal").hidden=true; document.body.style.overflow=""; $("adminPasscode").value=""; }
 
-  const dashboardApi = Object.freeze({ classifyQuestion, normalizeProduct, parseDateValue, parseCSV, parseFile, limitAnalysisRows, normalizeRecord, findField, rehydrateStoredRows, reclassifyStoredRows, normalizeQuestionForRepeat, hasUsableUserId, calculateRepeatQuestionMetrics, getState: () => ({ allData: [...allData], filteredData: [...filteredData] }) });
+  const dashboardApi = Object.freeze({ classifyQuestion, normalizeProduct, parseDateValue, parseCSV, parseFile, limitAnalysisRows, normalizeRecord, findField, rehydrateStoredRows, reclassifyStoredRows, normalizeQuestionForRepeat, hasUsableUserId, calculateRepeatQuestionMetrics, hashUserIdentifier, prepareSharedRows, getState: () => ({ allData: [...allData], filteredData: [...filteredData] }) });
   if (typeof module !== "undefined" && module.exports) { module.exports = dashboardApi; return; }
   window.QuestionDashboard = dashboardApi;
 
@@ -539,9 +609,16 @@
   $("questionSearch").addEventListener("input",renderTable);
   $("showMore").addEventListener("click",()=>{tableExpanded=!tableExpanded;renderTable();});
   $("clearData").addEventListener("click",async()=>{
-    if (!window.confirm("确定清除当前浏览器中保存的全部提问数据吗？此操作无法撤销。")) return;
-    try { await deleteStoredDataset(); showEmptyState("已清除保存数据 · 等待重新上传"); }
-    catch (error) { $("dataStateText").textContent = "数据清除失败 · 请重试"; }
+    if (!window.confirm(cloudSharingAvailable() ? "确定清除线上共享的全部提问数据吗？其他访问者也将看不到数据。" : "确定清除当前浏览器中保存的全部提问数据吗？")) return;
+    try {
+      if (cloudSharingAvailable()) {
+        const passcode = window.prompt("请输入管理员发布口令以确认清除：") || "";
+        if (!passcode) return;
+        await publishSharedDataset({ rows: [], classifierVersion: CLASSIFIER_VERSION }, passcode, "clear");
+      }
+      await deleteStoredDataset(); showEmptyState(cloudSharingAvailable() ? "共享数据已清除 · 等待重新发布" : "已清除本地数据 · 等待重新上传");
+    }
+    catch (error) { $("dataStateText").textContent = error.message || "数据清除失败 · 请重试"; }
   });
   document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!$("uploadModal").hidden)closeModal();});
 
