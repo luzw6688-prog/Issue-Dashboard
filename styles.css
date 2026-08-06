@@ -290,6 +290,11 @@ footer p { margin: 0; }
 .analysis-progress ol { margin: 0; padding-left: 20px; color: var(--muted); font-size: 9px; line-height: 1.9; }
 .analysis-progress li.is-done { color: var(--cyan); }
 .upload-error { min-height: 18px; margin: 12px 0 0; color: #ff7d8b; font-size: 10px; }
+.admin-passcode { display: grid; gap: 7px; margin: 18px 0 12px; }
+.admin-passcode > span { color: var(--text); font-size: 10px; font-weight: 600; }
+.admin-passcode input { width: 100%; min-height: 44px; padding: 0 12px; border: 1px solid var(--line); background: rgba(4,10,20,.76); color: var(--text); outline: 0; }
+.admin-passcode input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(98,232,255,.09); }
+.admin-passcode small { color: var(--muted); font: 8px/1.4 var(--mono); }
 .empty-table { text-align: center; color: var(--muted); padding: 30px; }
 
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
