@@ -8,9 +8,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="./styles.css?v=20260806-repeat1" />
+    <link rel="stylesheet" href="./styles.css?v=20260806-shared1" />
     <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script defer src="./app.js?v=20260806-repeat1"></script>
+    <script defer src="./app.js?v=20260806-shared1"></script>
   </head>
   <body>
     <a class="skip-link" href="#main">跳至主要内容</a>
@@ -159,7 +159,13 @@
         <button class="modal-close" type="button" data-close-modal aria-label="关闭">×</button>
         <p class="section-index">IMPORT DATA</p>
         <h2 id="uploadTitle">上传用户提问数据</h2>
-        <p class="modal-intro">系统将在当前浏览器中完成解析与分类，并保存分析结果。刷新或重新打开本页面后会自动恢复；数据不会上传到第三方服务器。</p>
+        <p class="modal-intro">系统将在浏览器中完成解析与分类，并将脱敏后的分析数据发布到共享看板。其他访问者打开线上地址后将自动看到最新数据。</p>
+
+        <label class="admin-passcode" id="adminPasscodeField">
+          <span>管理员发布口令</span>
+          <input id="adminPasscode" type="password" autocomplete="current-password" placeholder="请输入发布口令" />
+          <small>仅用于本次发布，不会保存在浏览器中</small>
+        </label>
 
         <div class="upload-drop" id="dropZone">
           <input id="fileInput" type="file" accept=".csv,.json,.xlsx,.xls,text/csv,application/json" />
@@ -170,7 +176,7 @@
 
         <div class="field-guide">
           <div><span>必需字段</span><strong>提问内容</strong><small>question / question_text / 用户提问</small></div>
-          <div><span>推荐字段</span><strong>时间 · 用户 · 产品端</strong><small>缺失时会明确标注，不虚构默认值</small></div>
+          <div><span>推荐字段</span><strong>时间 · 用户 · 产品端</strong><small>原始用户 ID 会转换为不可逆指纹后再发布</small></div>
         </div>
 
         <div class="analysis-progress" id="analysisProgress" hidden aria-live="polite">
