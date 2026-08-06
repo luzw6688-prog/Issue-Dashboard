@@ -142,3 +142,55 @@ test("stored classifications can be recalculated without losing row metadata", (
   assert.equal(restored.primary, "感情婚恋");
   assert.equal(restored.secondary, "联系互动");
 });
+
+test("classifier handles representative multilingual questions from the production export", () => {
+  const cases = [
+    ["how does she feel about me right now romantically", "感情婚恋", "亲密吸引"],
+    ["What is the trajectory of our relationship", "感情婚恋", "关系走向"],
+    ["when will Donaldo contact me", "感情婚恋", "联系互动"],
+    ["i really wanna know if reconciliation with my ex is possible", "感情婚恋", "复合"],
+    ["What are her thoughts of me like today", "感情婚恋", "对方想法"],
+    ["Will I pass my pathology test tomorrow?", "学业考试", "考试结果"],
+    ["Where will I be in my job search by next month?", "事业工作", "求职录用"],
+    ["I bought a powerball ticket. Will I win the next drawing?", "财运财富", "投资"],
+    ["Why have I been feeling anxious about the political situation?", "健康状态", "身心压力"],
+    ["引っ越しは新しい機会につながるでしょうか？", "房产居住", "装修搬迁"],
+    ["Cosa prova Gennaro per me?", "感情婚恋", "对方想法"],
+    ["Каково реальное состояние моего ментального здоровья?", "健康状态", "身心压力"],
+    ["what is my intuition trying to tell me?", "灵性指引", "直觉能量"],
+    ["我梦到蛇了，意味着什么？", "灵性指引", "梦境征兆"],
+    ["我这个月能减肥5斤吗", "健康状态", "身体状态"],
+    ["我和Matthew八月的情感走向", "感情婚恋", "关系走向"],
+    ["今天适合上班吗", "事业工作", "项目成败"],
+    ["27年年底，我们住在哪里", "出行迁移", "异地迁移"],
+    ["Should he move on", "选择决策", "行动建议"],
+    ["\"What is the primary reason she hasn't responded?\"", "感情婚恋", "联系互动"],
+  ];
+  for (const [question, primary, secondary] of cases) {
+    assert.deepEqual(api.classifyQuestion(question), { primary, secondary, valid: true }, question);
+  }
+});
+
+test("prompt-control text and low-information repeated strings are not business topics", () => {
+  assert.deepEqual(api.classifyQuestion("1111"), { primary: "无效问题", secondary: "无效内容", valid: false });
+  assert.deepEqual(api.classifyQuestion("iiiiii"), { primary: "无效问题", secondary: "无效内容", valid: false });
+  assert.deepEqual(api.classifyQuestion("Do not hedge. Answer the question."), { primary: "无效问题", secondary: "提示或解读要求", valid: false });
+});
+
+test("high-frequency words do not override their sentence context", () => {
+  const cases = [
+    ["what opportunities does the i ching see coming after the movie release", "事业工作"],
+    ["What is the trajectory of our relationship if I sleep with other people", "感情婚恋"],
+    ["does vince know his feelings and has he admitted it to himself", "感情婚恋"],
+    ["should I sign on as a police officer?", "选择决策"],
+    ["I brought her a Monster energy drink", "其他"],
+    ["Can I trust this person with what I'm about to share?", "人际关系"],
+    ["If I continue investing in this relationship, what do I gain?", "感情婚恋"],
+    ["Какой главный урок из его судьбы?", "灵性指引"],
+    ["我和A这段关系要健康地发展，需要什么态度？", "感情婚恋"],
+    ["我今年能瘦40斤吗", "健康状态"],
+  ];
+  for (const [question, primary] of cases) {
+    assert.equal(api.classifyQuestion(question).primary, primary, question);
+  }
+});
