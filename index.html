@@ -8,9 +8,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="./styles.css?v=20260805-persist1" />
+    <link rel="stylesheet" href="./styles.css?v=20260806-repeat1" />
     <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script defer src="./app.js?v=20260806-classifier3"></script>
+    <script defer src="./app.js?v=20260806-repeat1"></script>
   </head>
   <body>
     <a class="skip-link" href="#main">跳至主要内容</a>
@@ -70,6 +70,23 @@
           <p id="freshnessText">数据更新于 —</p>
         </div>
         <div class="metric-grid" id="metricGrid"></div>
+        <article class="repeat-insight" id="repeatInsight" aria-labelledby="repeatInsightTitle">
+          <div class="repeat-intro">
+            <p class="panel-kicker">REPEAT SIGNAL</p>
+            <h3 id="repeatInsightTitle">同一用户重复提问</h3>
+            <span id="repeatCoverage">等待上传数据</span>
+          </div>
+          <div class="repeat-stat">
+            <span>重复提问相同问题用户数</span>
+            <strong id="repeatUserCount">—</strong>
+            <small id="repeatUserNote">至少重复 1 次</small>
+          </div>
+          <div class="repeat-stat">
+            <span>重复提问相同问题数</span>
+            <strong id="repeatQuestionCount">—</strong>
+            <small id="repeatQuestionNote">仅计算首次之后的记录</small>
+          </div>
+        </article>
       </section>
 
       <section class="dashboard-grid primary-grid">
