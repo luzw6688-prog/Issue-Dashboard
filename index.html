@@ -8,9 +8,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="./styles.css?v=20260806-shared1" />
+    <link rel="stylesheet" href="./styles.css?v=20260811-subscription2" />
     <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script defer src="./app.js?v=20260806-shared2"></script>
+    <script defer src="./app.js?v=20260811-subscription2"></script>
   </head>
   <body>
     <a class="skip-link" href="#main">跳至主要内容</a>
@@ -59,6 +59,20 @@
         </div>
         <label><span>时间范围</span><select id="dateFilter"><option value="all">全部时间</option><option value="7">最近 7 天</option><option value="30" selected>最近 30 天</option></select></label>
         <label><span>产品端</span><select id="productFilter"><option value="all">全部产品</option><option value="App">App</option><option value="Web">Web</option></select></label>
+        <div class="subscription-filter" id="subscriptionFilter">
+          <span class="filter-label">用户状态</span>
+          <button class="subscription-trigger" id="subscriptionFilterButton" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="subscriptionFilterPopover"><strong id="subscriptionFilterSummary">全部状态</strong><span aria-hidden="true">⌄</span></button>
+          <div class="subscription-popover" id="subscriptionFilterPopover" role="listbox" aria-multiselectable="true" hidden>
+            <p>筛选用户订阅状态</p>
+            <label><input type="checkbox" name="subscriptionStatus" value="订阅用户" checked><span>订阅用户</span></label>
+            <label><input type="checkbox" name="subscriptionStatus" value="订阅试用用户" checked><span>订阅试用用户</span></label>
+            <label><input type="checkbox" name="subscriptionStatus" value="免费用户" checked><span>免费用户</span></label>
+            <label><input type="checkbox" name="subscriptionStatus" value="取消订阅用户" checked><span>取消订阅用户</span></label>
+            <label><input type="checkbox" name="subscriptionStatus" value="订阅过期用户" checked><span>订阅过期用户</span></label>
+            <label><input type="checkbox" name="subscriptionStatus" value="未知状态用户" checked><span>未知状态用户</span></label>
+            <small id="subscriptionFilterError" role="status" aria-live="polite"></small>
+          </div>
+        </div>
         <label><span>一级类型</span><select id="categoryFilter"><option value="all">全部类型</option></select></label>
         <label><span>二级类型</span><select id="secondaryFilter"><option value="all">全部场景</option></select></label>
         <button class="reset-button" id="resetFilters" type="button">重置</button>
@@ -171,12 +185,12 @@
           <input id="fileInput" type="file" accept=".csv,.json,.xlsx,.xls,text/csv,application/json" />
           <div class="upload-symbol" aria-hidden="true">↥</div>
           <strong>拖入文件，或点击选择</strong>
-          <span>支持 CSV、Excel、JSON · 建议包含 question_text、created_at、user_id、product</span>
+          <span>支持 CSV、Excel、JSON · 建议包含 question_text、created_at、user_id、product、subscription_status</span>
         </div>
 
         <div class="field-guide">
           <div><span>必需字段</span><strong>提问内容</strong><small>question / question_text / 用户提问</small></div>
-          <div><span>推荐字段</span><strong>时间 · 用户 · 产品端</strong><small>原始用户 ID 会转换为不可逆指纹后再发布</small></div>
+          <div><span>推荐字段</span><strong>时间 · 用户 · 产品端 · 订阅状态</strong><small>原始用户 ID 会转换为不可逆指纹后再发布</small></div>
         </div>
 
         <div class="analysis-progress" id="analysisProgress" hidden aria-live="polite">
