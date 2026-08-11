@@ -30,6 +30,29 @@ test("product normalization never silently defaults unknown values to App", () =
   assert.equal(api.normalizeProduct("", ""), "未知");
 });
 
+test("subscription statuses normalize into the six dashboard groups", () => {
+  const cases = [
+    ["active", "订阅用户"], ["paid", "订阅用户"],
+    ["trialing", "订阅试用用户"], ["免费试用", "订阅试用用户"],
+    ["free", "免费用户"], ["未订阅", "免费用户"],
+    ["cancelled", "取消订阅用户"], ["取消订阅", "取消订阅用户"],
+    ["expired", "订阅过期用户"], ["past_due", "订阅过期用户"],
+    ["", "未知状态用户"], ["unexpected-state", "未知状态用户"],
+  ];
+  for (const [value, expected] of cases) assert.equal(api.normalizeSubscriptionStatus(value), expected, value);
+});
+
+test("subscription filter supports multiple selections", () => {
+  const rows = [
+    { subscriptionStatus: "订阅用户" },
+    { subscriptionStatus: "免费用户" },
+    { subscriptionStatus: "取消订阅用户" },
+    {},
+  ];
+  assert.deepEqual(api.filterBySubscriptionStatuses(rows, new Set(["订阅用户", "免费用户"])), rows.slice(0, 2));
+  assert.deepEqual(api.filterBySubscriptionStatuses(rows, ["未知状态用户"]), [rows[3]]);
+});
+
 test("date parser handles missing, invalid, Excel serial and epoch values", () => {
   assert.equal(api.parseDateValue(""), null);
   assert.equal(api.parseDateValue("not-a-date"), null);
@@ -59,7 +82,13 @@ test("record mapping keeps missing dates and users explicit", () => {
   assert.equal(mapped.date, null);
   assert.equal(mapped.user, null);
   assert.equal(mapped.product, "未知");
+  assert.equal(mapped.subscriptionStatus, "未知状态用户");
   assert.equal(mapped.primary, "事业工作");
+});
+
+test("record mapping reads common subscription status headers", () => {
+  const mapped = api.normalizeRecord({ question: "最近工作顺利吗？", subscription_status: "trialing" }, 2);
+  assert.equal(mapped.subscriptionStatus, "订阅试用用户");
 });
 
 test("JSON parsing merges only top-level arrays that contain question records", async () => {
@@ -235,6 +264,7 @@ test("shared rows remove source identifiers and hash user IDs", async () => {
     user: "raw-user-123",
     product: "Web",
     platform: "browser",
+    subscriptionStatus: "paid",
     primary: "具体事件",
     secondary: "事情成败",
     valid: true,
@@ -243,6 +273,7 @@ test("shared rows remove source identifiers and hash user IDs", async () => {
   assert.match(row.user, /^sha256:[a-f0-9]{64}$/);
   assert.notEqual(row.user, "raw-user-123");
   assert.equal(row.date, "2026-08-06T03:00:00.000Z");
+  assert.equal(row.subscriptionStatus, "订阅用户");
 });
 
 test("Excel import selects one best analysis sheet instead of double-counting duplicate sheets", () => {
