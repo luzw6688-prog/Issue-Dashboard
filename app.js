@@ -111,12 +111,14 @@
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_q5EtMfCMg3aIhdNeDUKbig_4d_8YtAg";
   const SHARED_DATASET_URL = `${SUPABASE_URL}/rest/v1/dashboard_dataset?dataset_key=eq.main&select=payload,published_at,record_count`;
   const SHARED_PUBLISH_URL = `${SUPABASE_URL}/functions/v1/dashboard-data`;
+  const SUBSCRIPTION_STATUSES = ["订阅用户", "订阅试用用户", "免费用户", "取消订阅用户", "订阅过期用户", "未知状态用户"];
   const aliases = {
     question: ["question_text", "question", "questioncontent", "content", "message", "query", "prompt", "用户提问", "提问内容", "问题内容", "问卦内容", "问题"],
     date: ["created_at", "createdat", "event_timestamp", "eventtimestamp", "event_time", "eventtime", "question_time", "questiontime", "timestamp", "datetime", "date", "time", "提问时间", "创建时间", "日期时间", "日期"],
     user: ["user_id", "userid", "anonymous_id", "anonymousid", "device_id", "deviceid", "uid", "用户id", "用户ID", "设备id", "用户"],
     product: ["product", "product_type", "producttype", "client", "client_type", "clienttype", "app_web", "appweb", "产品端", "客户端", "产品", "端"],
-    platform: ["platform", "device_type", "devicetype", "operating_system", "operatingsystem", "os", "系统", "平台", "设备类型"]
+    platform: ["platform", "device_type", "devicetype", "operating_system", "operatingsystem", "os", "系统", "平台", "设备类型"],
+    subscription: ["subscription_status", "subscriptionstatus", "subscription_state", "subscriptionstate", "subscriber_status", "subscriberstatus", "membership_status", "membershipstatus", "entitlement_status", "entitlementstatus", "billing_status", "billingstatus", "plan_status", "planstatus", "user_type", "usertype", "用户类型", "用户状态", "订阅状态", "会员状态", "付费状态", "套餐状态"]
   };
   const QUESTION_FIELD_BLOCKLIST = /(^|)(id|type|status|category|分类|标签)$/i;
 
@@ -160,6 +162,16 @@
     if (/\bapp\b|ios|android|mobile|客户端|应用/.test(text)) return "App";
     return "未知";
   }
+  function normalizeSubscriptionStatus(value) {
+    const text = String(value ?? "").normalize("NFKC").trim().toLowerCase();
+    if (!text || /^(?:unknown|undefined|null|n\/a|na|未知|不明|—|-)$/i.test(text)) return "未知状态用户";
+    if (/试用|trial(?:ing)?|in[_\s-]?trial|free[_\s-]?trial/.test(text)) return "订阅试用用户";
+    if (/已取消|取消订阅|退订|cancel(?:led|ed)?|canceled|unsubscrib(?:ed|e)|will[_\s-]?cancel/.test(text)) return "取消订阅用户";
+    if (/已过期|订阅过期|失效|到期|expired?|past[_\s-]?due|lapsed|inactive|overdue/.test(text)) return "订阅过期用户";
+    if (/免费|未订阅|从未订阅|非订阅|free|never[_\s-]?subscribed|non[_\s-]?subscriber|not[_\s-]?subscribed|basic/.test(text)) return "免费用户";
+    if (/订阅用户|已订阅|会员|付费|active|subscrib(?:ed|er)|premium|paid|pro\b|current/.test(text)) return "订阅用户";
+    return "未知状态用户";
+  }
   function parseDateValue(value) {
     if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
     if (value == null || String(value).trim() === "") return null;
@@ -179,6 +191,7 @@
     const qField = findField(row, "question");
     const dField = findField(row, "date");
     const uField = findField(row, "user");
+    const subscriptionField = findField(row, "subscription");
     let pField = findField(row, "product");
     const platformField = findField(row, "platform");
     if (!pField) pField = Object.keys(row).find(key => ["source", "来源", "数据来源"].includes(normalizeKey(key)) && normalizeProduct(row[key], "") !== "未知");
@@ -194,6 +207,7 @@
       user: rawUser || null,
       product: normalizeProduct(row[pField], platform),
       platform,
+      subscriptionStatus: normalizeSubscriptionStatus(row[subscriptionField]),
       ...classification
     };
   }
@@ -251,7 +265,7 @@
     } finally { db.close(); }
   }
   function rehydrateStoredRows(rows) {
-    return Array.isArray(rows) ? rows.map(item => ({ ...item, date: parseDateValue(item?.date) })) : [];
+    return Array.isArray(rows) ? rows.map(item => ({ ...item, date: parseDateValue(item?.date), subscriptionStatus: normalizeSubscriptionStatus(item?.subscriptionStatus) })) : [];
   }
   function reclassifyStoredRows(rows) {
     return rehydrateStoredRows(rows).map(item => ({ ...item, ...classifyQuestion(item.question) }));
@@ -276,6 +290,7 @@
       user: userHashes.get(item?.user) || null,
       product: String(item?.product || "未知").slice(0, 40),
       platform: String(item?.platform || "未知").slice(0, 80),
+      subscriptionStatus: normalizeSubscriptionStatus(item?.subscriptionStatus),
       primary: String(item?.primary || "其他").slice(0, 40),
       secondary: String(item?.secondary || "无法判断").slice(0, 60),
       valid: item?.valid === true,
@@ -310,6 +325,7 @@
     $("dateFilter").value = "30";
     $("productFilter").value = "all";
     $("categoryFilter").value = "all";
+    setAllSubscriptionStatuses(true);
     updateFilterOptions();
     $("secondaryFilter").value = "all";
   }
@@ -419,14 +435,39 @@
     $("secondaryFilter").innerHTML = '<option value="all">全部场景</option>' + options.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("");
     if (options.includes(selected)) $("secondaryFilter").value = selected;
   }
+  function getSelectedSubscriptionStatuses() {
+    return new Set([...document.querySelectorAll('input[name="subscriptionStatus"]:checked')].map(input => input.value));
+  }
+  function setAllSubscriptionStatuses(checked) {
+    document.querySelectorAll('input[name="subscriptionStatus"]').forEach(input => { input.checked = checked; });
+    updateSubscriptionFilterSummary();
+  }
+  function updateSubscriptionFilterSummary() {
+    const selected = getSelectedSubscriptionStatuses();
+    const summary = selected.size === SUBSCRIPTION_STATUSES.length ? "全部状态" : selected.size === 1 ? [...selected][0] : `已选 ${selected.size} 项`;
+    $("subscriptionFilterSummary").textContent = summary;
+  }
+  function setSubscriptionPopoverOpen(open) {
+    const popover = $("subscriptionFilterPopover");
+    popover.hidden = !open;
+    $("subscriptionFilterButton").setAttribute("aria-expanded", String(open));
+    $("subscriptionFilter").classList.toggle("is-open", open);
+    document.querySelector(".filter-rail").classList.toggle("is-filter-open", open);
+  }
+  function filterBySubscriptionStatuses(data, statuses) {
+    const selected = statuses instanceof Set ? statuses : new Set(statuses || []);
+    return (Array.isArray(data) ? data : []).filter(item => selected.has(normalizeSubscriptionStatus(item?.subscriptionStatus)));
+  }
   function applyFilters() {
     const days = $("dateFilter").value;
     const product = $("productFilter").value;
     const category = $("categoryFilter").value;
     const secondary = $("secondaryFilter").value;
+    const subscriptionStatuses = getSelectedSubscriptionStatuses();
     const anchor = getDateAnchor(); const cutoff = new Date(anchor); if (days !== "all") cutoff.setDate(cutoff.getDate() - Number(days) + 1);
-    filteredData = allData.filter(item => (days === "all" || (item.date && item.date >= cutoff && item.date < new Date(anchor.getTime() + 86400000))) && (product === "all" || item.product === product) && (category === "all" || item.primary === category) && (secondary === "all" || item.secondary === secondary));
-    const parts = [days === "all" ? "全部时间" : `最近 ${days} 天`, product === "all" ? "全部产品" : product, category === "all" ? "全部类型" : category, secondary === "all" ? null : secondary].filter(Boolean);
+    filteredData = filterBySubscriptionStatuses(allData, subscriptionStatuses).filter(item => (days === "all" || (item.date && item.date >= cutoff && item.date < new Date(anchor.getTime() + 86400000))) && (product === "all" || item.product === product) && (category === "all" || item.primary === category) && (secondary === "all" || item.secondary === secondary));
+    const subscriptionSummary = subscriptionStatuses.size === SUBSCRIPTION_STATUSES.length ? "全部用户状态" : subscriptionStatuses.size === 1 ? [...subscriptionStatuses][0] : `${subscriptionStatuses.size} 类用户状态`;
+    const parts = [days === "all" ? "全部时间" : `最近 ${days} 天`, product === "all" ? "全部产品" : product, subscriptionSummary, category === "all" ? "全部类型" : category, secondary === "all" ? null : secondary].filter(Boolean);
     $("filterSummary").textContent = parts.join(" · ");
     renderAll();
   }
@@ -605,7 +646,7 @@
   function openModal() { $("uploadModal").hidden=false; document.body.style.overflow="hidden"; $("analysisProgress").hidden=true; $("uploadError").textContent=""; $("fileInput").value=""; $("adminPasscodeField").hidden=!cloudSharingAvailable(); }
   function closeModal() { $("uploadModal").hidden=true; document.body.style.overflow=""; $("adminPasscode").value=""; }
 
-  const dashboardApi = Object.freeze({ classifyQuestion, normalizeProduct, parseDateValue, parseCSV, parseFile, limitAnalysisRows, selectBestAnalysisSheet, normalizeRecord, findField, rehydrateStoredRows, reclassifyStoredRows, normalizeQuestionForRepeat, hasUsableUserId, calculateRepeatQuestionMetrics, hashUserIdentifier, prepareSharedRows, getState: () => ({ allData: [...allData], filteredData: [...filteredData] }) });
+  const dashboardApi = Object.freeze({ classifyQuestion, normalizeProduct, normalizeSubscriptionStatus, filterBySubscriptionStatuses, parseDateValue, parseCSV, parseFile, limitAnalysisRows, selectBestAnalysisSheet, normalizeRecord, findField, rehydrateStoredRows, reclassifyStoredRows, normalizeQuestionForRepeat, hasUsableUserId, calculateRepeatQuestionMetrics, hashUserIdentifier, prepareSharedRows, getState: () => ({ allData: [...allData], filteredData: [...filteredData] }) });
   if (typeof module !== "undefined" && module.exports) { module.exports = dashboardApi; return; }
   window.QuestionDashboard = dashboardApi;
 
@@ -617,7 +658,10 @@
   $("dropZone").addEventListener("drop",event=>{event.preventDefault();$("dropZone").classList.remove("is-dragging");handleFile(event.dataTransfer.files[0]);});
   $("categoryFilter").addEventListener("change",()=>{updateSecondaryOptions();applyFilters();});
   ["dateFilter","productFilter","secondaryFilter"].forEach(id=>$(id).addEventListener("change",applyFilters));
-  $("resetFilters").addEventListener("click",()=>{$("dateFilter").value="30";$("productFilter").value="all";$("categoryFilter").value="all";updateSecondaryOptions();$("secondaryFilter").value="all";$("questionSearch").value="";tableExpanded=false;applyFilters();});
+  $("subscriptionFilterButton").addEventListener("click",()=>setSubscriptionPopoverOpen($("subscriptionFilterPopover").hidden));
+  document.querySelectorAll('input[name="subscriptionStatus"]').forEach(input=>input.addEventListener("change",event=>{const selected=getSelectedSubscriptionStatuses();if(!selected.size){event.target.checked=true;$("subscriptionFilterError").textContent="至少保留一个用户状态";return;}$("subscriptionFilterError").textContent="";updateSubscriptionFilterSummary();applyFilters();}));
+  document.addEventListener("click",event=>{if(!$("subscriptionFilter").contains(event.target))setSubscriptionPopoverOpen(false);});
+  $("resetFilters").addEventListener("click",()=>{$("dateFilter").value="30";$("productFilter").value="all";setAllSubscriptionStatuses(true);$("subscriptionFilterError").textContent="";$("categoryFilter").value="all";updateSecondaryOptions();$("secondaryFilter").value="all";$("questionSearch").value="";tableExpanded=false;applyFilters();});
   $("questionSearch").addEventListener("input",renderTable);
   $("showMore").addEventListener("click",()=>{tableExpanded=!tableExpanded;renderTable();});
   $("clearData").addEventListener("click",async()=>{
@@ -632,7 +676,7 @@
     }
     catch (error) { $("dataStateText").textContent = error.message || "数据清除失败 · 请重试"; }
   });
-  document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!$("uploadModal").hidden)closeModal();});
+  document.addEventListener("keydown",event=>{if(event.key!=="Escape")return;if(!$("uploadModal").hidden)closeModal();if(!$("subscriptionFilterPopover").hidden){setSubscriptionPopoverOpen(false);$("subscriptionFilterButton").focus();}});
 
   restoreStoredDataset();
 })();
