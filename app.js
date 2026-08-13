@@ -118,7 +118,7 @@
     user: ["user_id", "userid", "anonymous_id", "anonymousid", "device_id", "deviceid", "uid", "用户id", "用户ID", "设备id", "用户"],
     product: ["product", "product_type", "producttype", "client", "client_type", "clienttype", "app_web", "appweb", "产品端", "客户端", "产品", "端"],
     platform: ["platform", "device_type", "devicetype", "operating_system", "operatingsystem", "os", "系统", "平台", "设备类型"],
-    subscription: ["subscription_status", "subscriptionstatus", "subscription_state", "subscriptionstate", "subscriber_status", "subscriberstatus", "membership_status", "membershipstatus", "entitlement_status", "entitlementstatus", "billing_status", "billingstatus", "plan_status", "planstatus", "user_type", "usertype", "用户类型", "用户状态", "订阅状态", "会员状态", "付费状态", "套餐状态"]
+    subscription: ["subscribed", "subscription_status", "subscriptionstatus", "subscription_state", "subscriptionstate", "subscriber_status", "subscriberstatus", "membership_status", "membershipstatus", "entitlement_status", "entitlementstatus", "billing_status", "billingstatus", "plan_status", "planstatus", "user_type", "usertype", "用户类型", "用户状态", "订阅状态", "会员状态", "付费状态", "套餐状态"]
   };
   const QUESTION_FIELD_BLOCKLIST = /(^|)(id|type|status|category|分类|标签)$/i;
 
@@ -165,11 +165,12 @@
   function normalizeSubscriptionStatus(value) {
     const text = String(value ?? "").normalize("NFKC").trim().toLowerCase();
     if (!text || /^(?:unknown|undefined|null|n\/a|na|未知|不明|—|-)$/i.test(text)) return "未知状态用户";
-    if (/试用|trial(?:ing)?|in[_\s-]?trial|free[_\s-]?trial/.test(text)) return "订阅试用用户";
-    if (/已取消|取消订阅|退订|cancel(?:led|ed)?|canceled|unsubscrib(?:ed|e)|will[_\s-]?cancel/.test(text)) return "取消订阅用户";
-    if (/已过期|订阅过期|失效|到期|expired?|past[_\s-]?due|lapsed|inactive|overdue/.test(text)) return "订阅过期用户";
-    if (/免费|未订阅|从未订阅|非订阅|free|never[_\s-]?subscribed|non[_\s-]?subscriber|not[_\s-]?subscribed|basic/.test(text)) return "免费用户";
-    if (/订阅用户|已订阅|会员|付费|active|subscrib(?:ed|er)|premium|paid|pro\b|current/.test(text)) return "订阅用户";
+    const canonical = text.replace(/[\s-]+/g, "_");
+    if (["free_trial", "trial", "trialing", "in_trial"].includes(canonical) || /试用/.test(text)) return "订阅试用用户";
+    if (["canceled", "cancelled", "unsubscribed", "will_cancel"].includes(canonical) || /已取消|取消订阅|退订/.test(text)) return "取消订阅用户";
+    if (["expired", "past_due", "lapsed", "inactive", "overdue"].includes(canonical) || /已过期|订阅过期|失效|到期/.test(text)) return "订阅过期用户";
+    if (["not_subscribed", "never_subscribed", "non_subscriber", "free", "basic"].includes(canonical) || /免费|未订阅|从未订阅|非订阅/.test(text)) return "免费用户";
+    if (["active", "subscribed", "subscriber", "premium", "paid", "pro", "current"].includes(canonical) || /订阅用户|已订阅|会员|付费/.test(text)) return "订阅用户";
     return "未知状态用户";
   }
   function parseDateValue(value) {
