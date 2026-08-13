@@ -32,12 +32,12 @@ test("product normalization never silently defaults unknown values to App", () =
 
 test("subscription statuses normalize into the six dashboard groups", () => {
   const cases = [
-    ["active", "订阅用户"], ["paid", "订阅用户"],
-    ["trialing", "订阅试用用户"], ["免费试用", "订阅试用用户"],
-    ["free", "免费用户"], ["未订阅", "免费用户"],
-    ["cancelled", "取消订阅用户"], ["取消订阅", "取消订阅用户"],
+    ["active", "订阅用户"], ["Subscribed", "订阅用户"],
+    ["free_trial", "订阅试用用户"], ["Free Trial", "订阅试用用户"],
+    ["not_subscribed", "免费用户"], ["not Subscribed", "免费用户"],
+    ["canceled", "取消订阅用户"], ["取消订阅", "取消订阅用户"],
     ["expired", "订阅过期用户"], ["past_due", "订阅过期用户"],
-    ["", "未知状态用户"], ["unexpected-state", "未知状态用户"],
+    ["unknown", "未知状态用户"], ["unexpected-state", "未知状态用户"],
   ];
   for (const [value, expected] of cases) assert.equal(api.normalizeSubscriptionStatus(value), expected, value);
 });
@@ -87,7 +87,7 @@ test("record mapping keeps missing dates and users explicit", () => {
 });
 
 test("record mapping reads common subscription status headers", () => {
-  const mapped = api.normalizeRecord({ question: "最近工作顺利吗？", subscription_status: "trialing" }, 2);
+  const mapped = api.normalizeRecord({ question: "最近工作顺利吗？", Subscribed: "Free Trial" }, 2);
   assert.equal(mapped.subscriptionStatus, "订阅试用用户");
 });
 
